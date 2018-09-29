@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  <title>Callbag 👜</title>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, target-densitydpi=160dpi, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+  <link rel="stylesheet" media="all" href="docco.css" />
+</head>
+<body>
+  <div id="container">
+    <div id="background"></div>
+    
+    <ul class="sections">
+        
+        
+        
+        <li id="section-1">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-1">&#182;</a>
+              </div>
+              <h1 id="callbag-">Callbag 👜</h1>
+<p>A standard for Lua callbacks that enables lightweight observables and
+iterables.</p>
+<h2 id="specification">Specification</h2>
+<p><code>(type: &#39;start&#39; | &#39;data&#39; | &#39;end&#39;, payload?: any) =&gt; void</code></p>
+<h3 id="definitions">Definitions</h3>
+<p>Definitions</p>
+<ul>
+<li><em>Callbag</em>: a function of signature
+<code>(type: &#39;start&#39; | &#39;data&#39; | &#39;end&#39;, payload?: any) =&gt; void</code></li>
+<li><em>Greet</em>: if a callbag is called with <code>&#39;start&#39;</code> as the first argument, we
+say “the callbag is greeted”, while the code which performed the call
+“greets the callbag”</li>
+<li><em>Deliver</em>: if a callbag is called with <code>&#39;data&#39;</code> as the first argument, we
+say “the callbag is delivered data”, while the code which performed the
+call “delivers data to the callbag”</li>
+<li><em>Terminate</em>: if a callbag is called with <code>&#39;end&#39;</code> as the first argument, we
+say “the callbag is terminated”, while the code which performed the call
+“terminates the callbag”</li>
+<li><em>Source</em>: a callbag which is expected to deliver data</li>
+<li><em>Sink</em>: a callbag which is expected to be delivered data</li>
+</ul>
+<h1 id="callbag-basics">callbag-basics</h1>
+<p>Basic callbag factories and operators to get started with using the callbag
+spec.</p>
+<p>Mostly ported from <a href="https://github.com/staltz">@staltz</a>‘s
+JavaScript <a href="https://github.com/staltz/callbag-basics"><code>callbag-basics</code></a>.</p>
+
+            </div>
+            
+        </li>
+        
+        
+        <li id="section-2">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-2">&#182;</a>
+              </div>
+              <h1 id="api">API</h1>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>
+<span class="hljs-keyword">local</span> m = {}
+<span class="hljs-keyword">local</span> UNIQUE = {}
+<span class="hljs-keyword">local</span> <span class="hljs-built_in">unpack</span> = <span class="hljs-built_in">unpack</span> <span class="hljs-keyword">or</span> <span class="hljs-built_in">table</span>.<span class="hljs-built_in">unpack</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-3">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-3">&#182;</a>
+              </div>
+              <h2 id="source-factories">Source factories</h2>
+
+            </div>
+            
+        </li>
+        
+        
+        <li id="section-4">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-4">&#182;</a>
+              </div>
+              <h3 id="fromobs">fromObs</h3>
+<p>Convert an observable (or subscribable) to a callbag listenable source.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">m.fromObs</span><span class="hljs-params">(observable)</span></span>
+    <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(start, sink)</span></span>
+        <span class="hljs-keyword">if</span> start ~= <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span> <span class="hljs-keyword">return</span> <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">local</span> dispose
+        sink(<span class="hljs-string">'start'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(t)</span></span>
+            <span class="hljs-keyword">if</span> t == <span class="hljs-string">'end'</span> <span class="hljs-keyword">and</span> dispose <span class="hljs-keyword">then</span>
+                <span class="hljs-keyword">if</span> dispose.unsubscribe <span class="hljs-keyword">then</span>
+                    dispose.unsubscribe()
+                <span class="hljs-keyword">else</span>
+                    dispose()
+                <span class="hljs-keyword">end</span>
+            <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">end</span>)
+        dispose = observable.subscribe({
+            <span class="hljs-built_in">next</span> = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(x)</span></span> <span class="hljs-keyword">return</span> sink(<span class="hljs-string">'data'</span>, x) <span class="hljs-keyword">end</span>,
+            <span class="hljs-built_in">error</span> = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(e)</span></span> <span class="hljs-keyword">return</span> sink(<span class="hljs-string">'end'</span>, e) <span class="hljs-keyword">end</span>,
+            complete = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">()</span></span> <span class="hljs-keyword">return</span> sink(<span class="hljs-string">'end'</span>) <span class="hljs-keyword">end</span>,
+        })
+    <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-5">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-5">&#182;</a>
+              </div>
+              <h3 id="range">range</h3>
+<p>A callbag pullable source (it only sends data when requested) that sends an
+arithmetic progression. Goes from var (inclusive) to limit (inclusive) in
+increments of step.</p>
+<p>Ported from <a href="https://github.com/franciscotln">@franciscotln</a>‘s
+JavaScript <a href="https://github.com/franciscotln/callbag-range"><code>callbag-range</code></a>.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">m.range</span><span class="hljs-params">(var, limit, step)</span></span>
+    var, limit = <span class="hljs-built_in">tonumber</span>(var), <span class="hljs-built_in">tonumber</span>(limit)
+    <span class="hljs-keyword">if</span> step == <span class="hljs-literal">nil</span> <span class="hljs-keyword">then</span> step = <span class="hljs-number">1</span> <span class="hljs-keyword">else</span> step = <span class="hljs-built_in">tonumber</span>(step) <span class="hljs-keyword">end</span>
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> (var <span class="hljs-keyword">and</span> limit <span class="hljs-keyword">and</span> step) <span class="hljs-keyword">then</span>
+        <span class="hljs-built_in">error</span>(<span class="hljs-string">'arguments not convertible to numbers'</span>)
+    <span class="hljs-keyword">end</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(start, sink)</span></span>
+        <span class="hljs-keyword">if</span> start ~= <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span> <span class="hljs-keyword">return</span> <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">local</span> inLoop = <span class="hljs-literal">false</span>
+        <span class="hljs-keyword">local</span> gotData = <span class="hljs-literal">false</span>
+        <span class="hljs-keyword">local</span> completed = <span class="hljs-literal">false</span>
+        <span class="hljs-keyword">local</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">loop</span><span class="hljs-params">()</span></span>
+            inLoop = <span class="hljs-literal">true</span>
+            <span class="hljs-keyword">while</span> gotData <span class="hljs-keyword">and</span> <span class="hljs-keyword">not</span> completed <span class="hljs-keyword">do</span>
+                gotData = <span class="hljs-literal">false</span>
+                <span class="hljs-keyword">if</span> (step &gt; <span class="hljs-number">0</span> <span class="hljs-keyword">and</span> var &gt; limit) <span class="hljs-keyword">or</span> (step &lt;= <span class="hljs-number">0</span> <span class="hljs-keyword">and</span> var &lt; limit)
+                <span class="hljs-keyword">then</span>
+                    sink(<span class="hljs-string">'end'</span>)
+                    completed = <span class="hljs-literal">true</span>
+                <span class="hljs-keyword">else</span>
+                    sink(<span class="hljs-string">'data'</span>, var)
+                    var = var + step
+                <span class="hljs-keyword">end</span>
+            <span class="hljs-keyword">end</span>
+            inLoop = <span class="hljs-literal">false</span>
+        <span class="hljs-keyword">end</span>
+        sink(<span class="hljs-string">'start'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(t)</span></span>
+            <span class="hljs-keyword">if</span> completed <span class="hljs-keyword">then</span> <span class="hljs-keyword">return</span> <span class="hljs-keyword">end</span>
+            <span class="hljs-keyword">if</span> t == <span class="hljs-string">'data'</span> <span class="hljs-keyword">then</span>
+                gotData = <span class="hljs-literal">true</span>
+                <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> inLoop <span class="hljs-keyword">then</span> <span class="hljs-keyword">return</span> loop() <span class="hljs-keyword">end</span>
+            <span class="hljs-keyword">elseif</span> t == <span class="hljs-string">'end'</span> <span class="hljs-keyword">then</span>
+                completed = <span class="hljs-literal">true</span>
+            <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">end</span>)
+    <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-6">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-6">&#182;</a>
+              </div>
+              <h3 id="fromarray">fromArray</h3>
+<p>Convert an array-like object (integer indices increasing from 1) to a
+callbag pullable source (it only sends data when requested).</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">m.fromArray</span><span class="hljs-params">(arr)</span></span>
+    <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(start, sink)</span></span>
+        <span class="hljs-keyword">if</span> start ~= <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span> <span class="hljs-keyword">return</span> <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">local</span> inLoop = <span class="hljs-literal">false</span>
+        <span class="hljs-keyword">local</span> gotData = <span class="hljs-literal">false</span>
+        <span class="hljs-keyword">local</span> completed = <span class="hljs-literal">false</span>
+        <span class="hljs-keyword">local</span> index, res = <span class="hljs-number">1</span>, <span class="hljs-literal">nil</span>
+        <span class="hljs-keyword">local</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">loop</span><span class="hljs-params">()</span></span>
+            inLoop = <span class="hljs-literal">true</span>
+            <span class="hljs-keyword">while</span> gotData <span class="hljs-keyword">and</span> <span class="hljs-keyword">not</span> completed <span class="hljs-keyword">do</span>
+                gotData = <span class="hljs-literal">false</span>
+                res = arr[index]
+                <span class="hljs-keyword">if</span> res == <span class="hljs-literal">nil</span> <span class="hljs-keyword">then</span>
+                    sink(<span class="hljs-string">'end'</span>)
+                    completed = <span class="hljs-literal">true</span>
+                <span class="hljs-keyword">else</span>
+                    sink(<span class="hljs-string">'data'</span>, res)
+                    index = index + <span class="hljs-number">1</span>
+                <span class="hljs-keyword">end</span>
+            <span class="hljs-keyword">end</span>
+            inLoop = <span class="hljs-literal">false</span>
+        <span class="hljs-keyword">end</span>
+        sink(<span class="hljs-string">'start'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(t)</span></span>
+            <span class="hljs-keyword">if</span> completed <span class="hljs-keyword">then</span> <span class="hljs-keyword">return</span> <span class="hljs-keyword">end</span>
+            <span class="hljs-keyword">if</span> t == <span class="hljs-string">'data'</span> <span class="hljs-keyword">then</span>
+                gotData = <span class="hljs-literal">true</span>
+                <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> inLoop <span class="hljs-keyword">then</span> loop() <span class="hljs-keyword">end</span>
+            <span class="hljs-keyword">elseif</span> t == <span class="hljs-string">'end'</span> <span class="hljs-keyword">then</span>
+                completed = <span class="hljs-literal">true</span>
+            <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">end</span>)
+    <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-7">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-7">&#182;</a>
+              </div>
+              <h3 id="fromiter">fromIter</h3>
+<p>Convert a Lua iterator to a callbag pullable source (it only sends data when
+requested).</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">m.fromIter</span><span class="hljs-params">(f, s, var)</span></span>
+    <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(start, sink)</span></span>
+        <span class="hljs-keyword">if</span> start ~= <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span> <span class="hljs-keyword">return</span> <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">local</span> inLoop = <span class="hljs-literal">false</span>
+        <span class="hljs-keyword">local</span> gotData = <span class="hljs-literal">false</span>
+        <span class="hljs-keyword">local</span> completed = <span class="hljs-literal">false</span>
+        <span class="hljs-keyword">local</span> res
+        <span class="hljs-keyword">local</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">loop</span><span class="hljs-params">()</span></span>
+            inLoop = <span class="hljs-literal">true</span>
+            <span class="hljs-keyword">while</span> gotData <span class="hljs-keyword">and</span> <span class="hljs-keyword">not</span> completed <span class="hljs-keyword">do</span>
+                gotData = <span class="hljs-literal">false</span>
+                res = {f(s, var)}
+                var = res[<span class="hljs-number">1</span>]
+                <span class="hljs-keyword">if</span> var == <span class="hljs-literal">nil</span> <span class="hljs-keyword">then</span>
+                    sink(<span class="hljs-string">'end'</span>)
+                    <span class="hljs-keyword">break</span>
+                <span class="hljs-keyword">else</span>
+                    sink(<span class="hljs-string">'data'</span>, res)
+                <span class="hljs-keyword">end</span>
+            <span class="hljs-keyword">end</span>
+            inLoop = <span class="hljs-literal">false</span>
+        <span class="hljs-keyword">end</span>
+        sink(<span class="hljs-string">'start'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(t)</span></span>
+            <span class="hljs-keyword">if</span> completed <span class="hljs-keyword">then</span> <span class="hljs-keyword">return</span> <span class="hljs-keyword">end</span>
+            <span class="hljs-keyword">if</span> t == <span class="hljs-string">'data'</span> <span class="hljs-keyword">then</span>
+                gotData = <span class="hljs-literal">true</span>
+                <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> inLoop <span class="hljs-keyword">and</span> var ~= <span class="hljs-literal">nil</span> <span class="hljs-keyword">then</span> loop() <span class="hljs-keyword">end</span>
+            <span class="hljs-keyword">elseif</span> t == <span class="hljs-string">'end'</span> <span class="hljs-keyword">then</span>
+                completed = <span class="hljs-literal">true</span>
+            <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">end</span>)
+    <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-8">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-8">&#182;</a>
+              </div>
+              <h2 id="sink-factories">Sink factories</h2>
+
+            </div>
+            
+        </li>
+        
+        
+        <li id="section-9">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-9">&#182;</a>
+              </div>
+              <h3 id="foreach">forEach</h3>
+<p>Callbag sink that consumes both pullable and listenable sources. When called
+on a pullable source, it will iterate through its data. When called on a
+listenable source, it will observe its data.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">m.forEach</span><span class="hljs-params">(operation)</span></span> <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(source)</span></span>
+    <span class="hljs-keyword">local</span> talkback
+    source(<span class="hljs-string">'start'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(t, d)</span></span>
+        <span class="hljs-keyword">if</span> t == <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span> talkback = d
+        <span class="hljs-keyword">elseif</span> t == <span class="hljs-string">'data'</span> <span class="hljs-keyword">then</span> operation(d) <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">if</span> t == <span class="hljs-string">'start'</span> <span class="hljs-keyword">or</span> t == <span class="hljs-string">'data'</span> <span class="hljs-keyword">then</span> talkback(<span class="hljs-string">'data'</span>) <span class="hljs-keyword">end</span>
+    <span class="hljs-keyword">end</span>)
+<span class="hljs-keyword">end</span> <span class="hljs-keyword">end</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-10">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-10">&#182;</a>
+              </div>
+              <h3 id="intoiter">intoIter</h3>
+<p>Callbag sink that converts a synchronous pullable source to a Lua iterator
+consumer.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">m.toIter</span><span class="hljs-params">(source)</span></span>
+    <span class="hljs-keyword">return</span> coroutine.<span class="hljs-built_in">wrap</span>(<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">()</span></span>
+        <span class="hljs-keyword">local</span> talkback
+        <span class="hljs-keyword">local</span> var
+        source(<span class="hljs-string">'start'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(t, d)</span></span>
+            <span class="hljs-keyword">if</span> t == <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span> talkback = d
+            <span class="hljs-keyword">elseif</span> t == <span class="hljs-string">'data'</span> <span class="hljs-keyword">then</span> var = d
+            <span class="hljs-keyword">elseif</span> t == <span class="hljs-string">'end'</span> <span class="hljs-keyword">then</span> talkback = <span class="hljs-literal">nil</span> <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">end</span>)
+        <span class="hljs-keyword">while</span> talkback <span class="hljs-keyword">do</span>
+            talkback(<span class="hljs-string">'data'</span>)
+            <span class="hljs-keyword">if</span> var ~= <span class="hljs-literal">nil</span> <span class="hljs-keyword">then</span>
+                coroutine.<span class="hljs-built_in">yield</span>(var)
+                var = <span class="hljs-literal">nil</span>
+            <span class="hljs-keyword">else</span>
+                <span class="hljs-keyword">if</span> talkback <span class="hljs-keyword">then</span> talkback(<span class="hljs-string">'end'</span>) <span class="hljs-keyword">end</span>
+                <span class="hljs-keyword">return</span>
+            <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">end</span>
+    <span class="hljs-keyword">end</span>)
+<span class="hljs-keyword">end</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-11">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-11">&#182;</a>
+              </div>
+              <h2 id="transformation-operators">Transformation operators</h2>
+
+            </div>
+            
+        </li>
+        
+        
+        <li id="section-12">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-12">&#182;</a>
+              </div>
+              <h3 id="map">map</h3>
+<p>Callbag operator that applies a transformation on data passing through it.
+Works on either pullable or listenable sources.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">m.map</span><span class="hljs-params">(f)</span></span> <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(source)</span></span>
+    <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(start, sink)</span></span>
+        <span class="hljs-keyword">if</span> start ~= <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span> <span class="hljs-keyword">return</span> <span class="hljs-keyword">end</span>
+        source(<span class="hljs-string">'start'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(t, d)</span></span>
+            <span class="hljs-keyword">if</span> t == <span class="hljs-string">'data'</span> <span class="hljs-keyword">then</span> d = f(d) <span class="hljs-keyword">end</span>
+            sink(t, d)
+        <span class="hljs-keyword">end</span>)
+    <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span> <span class="hljs-keyword">end</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-13">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-13">&#182;</a>
+              </div>
+              <h3 id="scan">scan</h3>
+<p>Callbag operator that combines consecutive values from the same source. It’s
+essentially like JavaScript’s array <code>.reduce</code>, but delivers a new accumulated
+value for each value from the callbag source. Works on either pullable or
+listenable sources.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">m.scan</span><span class="hljs-params">(...)</span></span>
+    <span class="hljs-keyword">local</span> reducer, seed = ...
+    <span class="hljs-keyword">local</span> hasAcc = <span class="hljs-built_in">select</span>(<span class="hljs-string">'#'</span>, ...) == <span class="hljs-number">2</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(source)</span></span>
+        <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(start, sink)</span></span>
+            <span class="hljs-keyword">if</span> start ~= <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span> <span class="hljs-keyword">return</span> <span class="hljs-keyword">end</span>
+            <span class="hljs-keyword">local</span> acc = seed
+            source(<span class="hljs-string">'start'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(t, d)</span></span>
+                <span class="hljs-keyword">if</span> t == <span class="hljs-string">'data'</span> <span class="hljs-keyword">then</span>
+                    <span class="hljs-keyword">if</span> hasAcc <span class="hljs-keyword">then</span>
+                        acc = reducer(acc, d)
+                    <span class="hljs-keyword">else</span>
+                        hasAcc = <span class="hljs-literal">true</span>
+                        acc = d
+                    <span class="hljs-keyword">end</span>
+                    sink(t, acc)
+                <span class="hljs-keyword">else</span> sink(t, d) <span class="hljs-keyword">end</span>
+            <span class="hljs-keyword">end</span>)
+        <span class="hljs-keyword">end</span>
+    <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-14">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-14">&#182;</a>
+              </div>
+              <h3 id="flatten">flatten</h3>
+<p>Callbag operator that flattens a higher-order callbag source. Like RxJS
+“switch” or xstream “flatten”. Use it with map to get behavior equivalent to
+“switchMap”. Works on either pullable or listenable sources.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">m.flatten</span><span class="hljs-params">(source)</span></span>
+    <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(start, sink)</span></span>
+        <span class="hljs-keyword">if</span> start ~= <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span> <span class="hljs-keyword">return</span> <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">local</span> outerEnded = <span class="hljs-literal">false</span>
+        <span class="hljs-keyword">local</span> outerTalkback, innerTalkback
+        <span class="hljs-keyword">local</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">talkback</span><span class="hljs-params">(t, d)</span></span>
+            <span class="hljs-keyword">if</span> t == <span class="hljs-string">'data'</span> <span class="hljs-keyword">then</span> (innerTalkback <span class="hljs-keyword">or</span> outerTalkback)(t, d)
+            <span class="hljs-keyword">elseif</span> t == <span class="hljs-string">'end'</span> <span class="hljs-keyword">then</span>
+                <span class="hljs-keyword">if</span> innerTalkback <span class="hljs-keyword">then</span> innerTalkback(t) <span class="hljs-keyword">end</span>
+                outerTalkback(t)
+            <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">end</span>
+        source(<span class="hljs-string">'start'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(T, D)</span></span>
+            <span class="hljs-keyword">if</span> T == <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span>
+                outerTalkback = D
+                sink(T, talkback)
+            <span class="hljs-keyword">elseif</span> T == <span class="hljs-string">'data'</span> <span class="hljs-keyword">then</span>
+                <span class="hljs-keyword">local</span> innerSource = D
+                <span class="hljs-keyword">if</span> innerTalkback <span class="hljs-keyword">then</span> innerTalkback(<span class="hljs-string">'end'</span>) <span class="hljs-keyword">end</span>
+                innerSource(<span class="hljs-string">'start'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(t, d)</span></span>
+                    <span class="hljs-keyword">if</span> t == <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span>
+                        innerTalkback = d
+                        innerTalkback(<span class="hljs-string">'data'</span>)
+                    <span class="hljs-keyword">elseif</span> t == <span class="hljs-string">'data'</span> <span class="hljs-keyword">then</span> sink(t, d)
+                    <span class="hljs-keyword">elseif</span> t == <span class="hljs-string">'end'</span> <span class="hljs-keyword">then</span>
+                        <span class="hljs-keyword">if</span> d <span class="hljs-keyword">then</span>
+                            outerTalkback(t)
+                            sink(t, d)
+                        <span class="hljs-keyword">else</span>
+                            <span class="hljs-keyword">if</span> outerEnded <span class="hljs-keyword">then</span> sink(t)
+                            <span class="hljs-keyword">else</span>
+                                innerTalkback = <span class="hljs-literal">nil</span>
+                                outerTalkback(<span class="hljs-string">'data'</span>)
+                            <span class="hljs-keyword">end</span>
+                        <span class="hljs-keyword">end</span>
+                    <span class="hljs-keyword">end</span>
+                <span class="hljs-keyword">end</span>)
+            <span class="hljs-keyword">elseif</span> T == <span class="hljs-string">'end'</span> <span class="hljs-keyword">then</span>
+                <span class="hljs-keyword">if</span> D <span class="hljs-keyword">then</span>
+                    <span class="hljs-keyword">if</span> innerTalkback <span class="hljs-keyword">then</span> innerTalkback(T) <span class="hljs-keyword">end</span>
+                    sink(T, D)
+                <span class="hljs-keyword">else</span>
+                    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> innerTalkback <span class="hljs-keyword">then</span> sink(T)
+                    <span class="hljs-keyword">else</span> outerEnded = <span class="hljs-literal">true</span> <span class="hljs-keyword">end</span>
+                <span class="hljs-keyword">end</span>
+            <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">end</span>)
+    <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-15">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-15">&#182;</a>
+              </div>
+              <h2 id="filtering-operators">Filtering operators</h2>
+
+            </div>
+            
+        </li>
+        
+        
+        <li id="section-16">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-16">&#182;</a>
+              </div>
+              <h3 id="take">take</h3>
+<p>Callbag operator that limits the amount of data sent by a source. Works on
+either pullable and listenable sources.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">m.take</span><span class="hljs-params">(max)</span></span> <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(source)</span></span>
+    <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(start, sink)</span></span>
+        <span class="hljs-keyword">if</span> start ~= <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span> <span class="hljs-keyword">return</span> <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">local</span> taken = <span class="hljs-number">0</span>
+        <span class="hljs-keyword">local</span> sourceTalkback
+        <span class="hljs-keyword">local</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">talkback</span><span class="hljs-params">(t, d)</span></span>
+            <span class="hljs-keyword">if</span> taken &lt; <span class="hljs-built_in">max</span> <span class="hljs-keyword">then</span> sourceTalkback(t, d) <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">end</span>
+        source(<span class="hljs-string">'start'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(t, d)</span></span>
+            <span class="hljs-keyword">if</span> t == <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span>
+                sourceTalkback = d
+                sink(t, talkback)
+            <span class="hljs-keyword">elseif</span> t == <span class="hljs-string">'data'</span> <span class="hljs-keyword">then</span>
+                <span class="hljs-keyword">if</span> taken &lt; <span class="hljs-built_in">max</span> <span class="hljs-keyword">then</span>
+                    taken = taken + <span class="hljs-number">1</span>
+                    sink(t, d)
+                    <span class="hljs-keyword">if</span> taken == <span class="hljs-built_in">max</span> <span class="hljs-keyword">then</span>
+                        sink(<span class="hljs-string">'end'</span>)
+                        sourceTalkback(<span class="hljs-string">'end'</span>)
+                    <span class="hljs-keyword">end</span>
+                <span class="hljs-keyword">end</span>
+            <span class="hljs-keyword">else</span>
+                sink(t, d)
+            <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">end</span>)
+    <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span> <span class="hljs-keyword">end</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-17">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-17">&#182;</a>
+              </div>
+              <h3 id="skip">skip</h3>
+<p>Callbag operator that skips the first N data points of a source. Works on
+either pullable and listenable sources.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">m.skip</span><span class="hljs-params">(max)</span></span> <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(source)</span></span>
+    <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(start, sink)</span></span>
+        <span class="hljs-keyword">if</span> start ~= <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span> <span class="hljs-keyword">return</span> <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">local</span> skipped = <span class="hljs-number">0</span>
+        <span class="hljs-keyword">local</span> talkback
+        source(<span class="hljs-string">'start'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(t, d)</span></span>
+            <span class="hljs-keyword">if</span> t == <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span>
+                talkback = d
+                sink(t, d)
+            <span class="hljs-keyword">elseif</span> t == <span class="hljs-string">'data'</span> <span class="hljs-keyword">then</span>
+                <span class="hljs-keyword">if</span> skipped &lt; <span class="hljs-built_in">max</span> <span class="hljs-keyword">then</span>
+                    skipped = skipped + <span class="hljs-number">1</span>
+                    talkback(<span class="hljs-string">'data'</span>)
+                <span class="hljs-keyword">else</span> sink(t, d) <span class="hljs-keyword">end</span>
+            <span class="hljs-keyword">else</span>
+                sink(t, d)
+            <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">end</span>)
+    <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span> <span class="hljs-keyword">end</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-18">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-18">&#182;</a>
+              </div>
+              <h3 id="filter">filter</h3>
+<p>Callbag operator that conditionally lets data pass through. Works on either
+pullable or listenable sources.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">m.filter</span><span class="hljs-params">(condition)</span></span> <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(source)</span></span>
+    <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(start, sink)</span></span>
+        <span class="hljs-keyword">if</span> start ~= <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span> <span class="hljs-keyword">return</span> <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">local</span> talkback
+        source(<span class="hljs-string">'start'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(t, d)</span></span>
+            <span class="hljs-keyword">if</span> t == <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span>
+                talkback = d
+                sink(t, d)
+            <span class="hljs-keyword">elseif</span> t == <span class="hljs-string">'data'</span> <span class="hljs-keyword">then</span>
+                <span class="hljs-keyword">if</span> condition(d) <span class="hljs-keyword">then</span> sink(t, d)
+                <span class="hljs-keyword">else</span> talkback(<span class="hljs-string">'data'</span>) <span class="hljs-keyword">end</span>
+            <span class="hljs-keyword">else</span> sink(t, d) <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">end</span>)
+    <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span> <span class="hljs-keyword">end</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-19">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-19">&#182;</a>
+              </div>
+              <h2 id="combination-operators">Combination operators</h2>
+
+            </div>
+            
+        </li>
+        
+        
+        <li id="section-20">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-20">&#182;</a>
+              </div>
+              <h3 id="merge">merge</h3>
+<p>Callbag factory that merges data from multiple callbag sources. Works well
+with listenable sources, and while it may work for some pullable sources, it
+is only designed for listenable sources.</p>
+
+            </div>
+            
+        </li>
+        
+        
+        <li id="section-21">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-21">&#182;</a>
+              </div>
+              <h3 id="concat">concat</h3>
+<p>Callbag factory that concatenates the data from multiple (2 or more) callbag
+sources. It starts each source at a time: waits for the previous source to
+end before starting the next source. Works with both pullable and listenable
+sources.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">m.concat</span><span class="hljs-params">(...)</span></span>
+    <span class="hljs-keyword">local</span> n = <span class="hljs-built_in">select</span>(<span class="hljs-string">'#'</span>, ...)
+    <span class="hljs-keyword">local</span> sources = {...}
+    <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(start, sink)</span></span>
+        <span class="hljs-keyword">if</span> start ~= <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span> <span class="hljs-keyword">return</span> <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">if</span> n == <span class="hljs-number">0</span> <span class="hljs-keyword">then</span>
+            sink(<span class="hljs-string">'start'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">()</span></span> <span class="hljs-keyword">end</span>)
+            sink(<span class="hljs-string">'end'</span>)
+            <span class="hljs-keyword">return</span>
+        <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">local</span> i = <span class="hljs-number">1</span>
+        <span class="hljs-keyword">local</span> sourceTalkback
+        <span class="hljs-keyword">local</span> lastPull = UNIQUE
+        <span class="hljs-keyword">local</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">talkback</span><span class="hljs-params">(t, d)</span></span>
+            <span class="hljs-keyword">if</span> t == <span class="hljs-string">'data'</span> <span class="hljs-keyword">then</span> lastPull = d <span class="hljs-keyword">end</span>
+            sourceTalkback(t, d)
+        <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">local</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">next</span><span class="hljs-params">()</span></span>
+            <span class="hljs-keyword">if</span> i &gt; n <span class="hljs-keyword">then</span>
+                sink(<span class="hljs-string">'end'</span>)
+                <span class="hljs-keyword">return</span>
+            <span class="hljs-keyword">end</span>
+            sources[i](<span class="hljs-string">'start'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(t, d)</span></span>
+                <span class="hljs-keyword">if</span> t == <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span>
+                    sourceTalkback = d
+                    <span class="hljs-keyword">if</span> i == <span class="hljs-number">1</span> <span class="hljs-keyword">then</span>
+                        sink(t, talkback)
+                    <span class="hljs-keyword">elseif</span> lastPull ~= UNIQUE <span class="hljs-keyword">then</span>
+                        sourceTalkback(<span class="hljs-string">'data'</span>, lastPull)
+                    <span class="hljs-keyword">end</span>
+                <span class="hljs-keyword">elseif</span> t == <span class="hljs-string">'end'</span> <span class="hljs-keyword">then</span>
+                    <span class="hljs-keyword">if</span> d <span class="hljs-keyword">then</span>
+                        sink(t, d)
+                    <span class="hljs-keyword">else</span>
+                        i = i + <span class="hljs-number">1</span>
+                        <span class="hljs-keyword">return</span> <span class="hljs-built_in">next</span>()
+                    <span class="hljs-keyword">end</span>
+                <span class="hljs-keyword">else</span>
+                    sink(t, d)
+                <span class="hljs-keyword">end</span>
+            <span class="hljs-keyword">end</span>)
+        <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">return</span> <span class="hljs-built_in">next</span>()
+    <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-22">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-22">&#182;</a>
+              </div>
+              <h3 id="combine">combine</h3>
+<p>Callbag factory that combines the latest data points from multiple (2 or
+more) callbag sources. It delivers those latest values as an array. Works
+with both pullable and listenable sources.</p>
+
+            </div>
+            
+        </li>
+        
+        
+        <li id="section-23">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-23">&#182;</a>
+              </div>
+              <h2 id="utilities">Utilities</h2>
+
+            </div>
+            
+        </li>
+        
+        
+        <li id="section-24">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-24">&#182;</a>
+              </div>
+              <h3 id="share">share</h3>
+<p>Callbag operator that broadcasts a single source to multiple sinks. Does
+reference counting on sinks and starts the source when the first sink gets
+connected, similar to RxJS
+<a href="https://www.learnrxjs.io/operators/multicasting/share.html"><code>.share()</code></a>.
+Works on either pullable or listenable sources.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">m.share</span><span class="hljs-params">(source)</span></span>
+    <span class="hljs-keyword">local</span> sinks = {}
+    <span class="hljs-keyword">local</span> sourceTalkback
+
+    <span class="hljs-keyword">local</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">shared</span><span class="hljs-params">(start, sink)</span></span>
+        <span class="hljs-keyword">if</span> start ~= <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span> <span class="hljs-keyword">return</span> <span class="hljs-keyword">end</span>
+        <span class="hljs-built_in">table</span>.<span class="hljs-built_in">insert</span>(sinks, sink)
+
+        <span class="hljs-keyword">local</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">talkback</span><span class="hljs-params">(t, d)</span></span>
+            <span class="hljs-keyword">if</span> t == <span class="hljs-string">'end'</span> <span class="hljs-keyword">then</span>
+                <span class="hljs-keyword">local</span> i, found = <span class="hljs-number">1</span>, <span class="hljs-literal">false</span>
+                <span class="hljs-keyword">while</span> <span class="hljs-keyword">not</span> found <span class="hljs-keyword">do</span>
+                    <span class="hljs-keyword">local</span> v = sinks[i]
+                    <span class="hljs-keyword">if</span> v == <span class="hljs-literal">nil</span> <span class="hljs-keyword">then</span> <span class="hljs-keyword">break</span> <span class="hljs-keyword">end</span>
+                    <span class="hljs-keyword">if</span> v == sink <span class="hljs-keyword">then</span> found = <span class="hljs-literal">true</span> <span class="hljs-keyword">end</span>
+                    i = i + <span class="hljs-number">1</span>
+                <span class="hljs-keyword">end</span>
+                <span class="hljs-keyword">if</span> found <span class="hljs-keyword">then</span> <span class="hljs-built_in">table</span>.<span class="hljs-built_in">remove</span>(sinks, i) <span class="hljs-keyword">end</span>
+                <span class="hljs-keyword">if</span> #sinks == <span class="hljs-number">0</span> <span class="hljs-keyword">then</span> sourceTalkback(t) <span class="hljs-keyword">end</span>
+            <span class="hljs-keyword">else</span>
+                sourceTalkback(t, d)
+            <span class="hljs-keyword">end</span>
+        <span class="hljs-keyword">end</span>
+
+        <span class="hljs-keyword">if</span> #sinks == <span class="hljs-number">1</span> <span class="hljs-keyword">then</span>
+            source(<span class="hljs-string">'start'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(t, d)</span></span>
+                <span class="hljs-keyword">if</span> t == <span class="hljs-string">'start'</span> <span class="hljs-keyword">then</span>
+                    sourceTalkback = d
+                    sink(t, talkback)
+                <span class="hljs-keyword">else</span>
+                    <span class="hljs-keyword">local</span> sinksCopy = {}
+                    <span class="hljs-keyword">for</span> i, v <span class="hljs-keyword">in</span> <span class="hljs-built_in">ipairs</span>(sinks) <span class="hljs-keyword">do</span> sinksCopy[i] = v <span class="hljs-keyword">end</span>
+                    <span class="hljs-keyword">for</span> _, s <span class="hljs-keyword">in</span> <span class="hljs-built_in">ipairs</span>(sinksCopy) <span class="hljs-keyword">do</span> s(t, d) <span class="hljs-keyword">end</span>
+                <span class="hljs-keyword">end</span>
+                <span class="hljs-keyword">if</span> t == <span class="hljs-string">'end'</span> <span class="hljs-keyword">then</span> sinks = {} <span class="hljs-keyword">end</span>
+            <span class="hljs-keyword">end</span>)
+        <span class="hljs-keyword">else</span>
+            sink(<span class="hljs-string">'start'</span>, talkback)
+        <span class="hljs-keyword">end</span>
+    <span class="hljs-keyword">end</span>
+    <span class="hljs-keyword">return</span> shared
+<span class="hljs-keyword">end</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-25">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-25">&#182;</a>
+              </div>
+              <h3 id="pipe">pipe</h3>
+<p>Utility function for plugging callbags together in chain. This utility
+actually doesn’t rely on Callbag specifics, and is basically the same as
+Ramda’s <code>pipe</code> or lodash’s <code>flow</code>. Anyway, this exists just to play nicely
+with the ecosystem, and to facilitate the import of the function.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">m.pipe</span><span class="hljs-params">(...)</span></span>
+    <span class="hljs-keyword">local</span> res = {(...)}
+    <span class="hljs-keyword">for</span> i = <span class="hljs-number">2</span>, <span class="hljs-built_in">select</span>(<span class="hljs-string">'#'</span>, ...) <span class="hljs-keyword">do</span>
+        res = {<span class="hljs-built_in">select</span>(i, ...)(<span class="hljs-built_in">unpack</span>(res))}
+    <span class="hljs-keyword">end</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-built_in">unpack</span>(res)
+<span class="hljs-keyword">end</span></pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-26">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-26">&#182;</a>
+              </div>
+              <h3 id="pipevalues">pipeValues</h3>
+<p>Like pipe, but the first argument is an array-style table of initial values
+to pass.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">m.pipeValues</span><span class="hljs-params">(...)</span></span>
+    <span class="hljs-keyword">local</span> res = ...
+    <span class="hljs-keyword">for</span> i = <span class="hljs-number">2</span>, <span class="hljs-built_in">select</span>(<span class="hljs-string">'#'</span>, ...) <span class="hljs-keyword">do</span>
+        res = {<span class="hljs-built_in">select</span>(i, ...)(<span class="hljs-built_in">unpack</span>(res))}
+    <span class="hljs-keyword">end</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-built_in">unpack</span>(res)
+<span class="hljs-keyword">end</span>
+
+<span class="hljs-keyword">return</span> m</pre></div></div>
+            
+        </li>
+        
+    </ul>
+  </div>
+</body>
+</html>
